@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clone Humain - T.T.A Distribution</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0f0f1b;
+      color: white;
+      font-family: sans-serif;
+      overflow-x: hidden;
+    }
+
+    .container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    #faceBase {
+      max-width: 95vw;
+      max-height: 95vh;
+      display: block;
+      object-fit: contain;
+      z-index: 1;
+    }
+
+    /* --- CONTENEUR DU MASQUE (ovale avec bordure) --- */
+    #mouthMaskContainer {
+      position: absolute;
+      top: 45%;
+      left: 48%;
+      width: 20%;
+      height: 10%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 2px solid #00f0ff;
+      overflow: hidden;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* --- VISÈMES (clipés à l'ovale par le conteneur) --- */
+    #mouthSprite {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      text-align: center;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+
+    button {
+      background: #00f0ff;
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      margin: 5px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .status {
+      color: #00f0ff;
+      margin: 10px 0;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* --- SETTINGS PANEL --- */
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: -300px;
+      width: 300px;
+      height: 100vh;
+      background: #1a1a2e;
+      z-index: 1000;
+      transition: right 0.3s ease;
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    .settings-panel.open {
+      right: 0;
+    }
+
+    .close-btn {
+      background: #ff0000;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      float: right;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      background: #2a2a3a;
+      color: white;
+      border: 1px solid #00f0ff;
+      border-radius: 4px;
+    }
+
+    .save-btn {
+      width: 100%;
+      background: #00f0ff;
+      color: #000;
+      margin-top: 20px;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    h4 {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #00f0ff;
+      padding-bottom: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- Visage de fond (toujours visible) -->
+    <img id="faceBase" src="zero.jpg" alt="Visage de référence" />
+
+    <!-- Masque ovale visible -->
+    <div id="mouthMaskContainer">
+      <!-- Visèmes (clipés à l'ovale par le conteneur) -->
+      <img id="mouthSprite" src="sprites/bouche_H.png" alt="Bouche" />
+    </div>
+
+    <div class="controls">
+      <button onclick="startListening()">🎤 Écouter</button>
+      <button onclick="stopListening()">⏹️ Arrêter</button>
+      <button onclick="toggleSettings()">⚙️ Settings</button>
+      <div class="status" id="status">Cliquez sur "Écouter" pour commencer.</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="settings-panel" id="settingsPanel">
+    <h3>Réglages
+      <button class="close-btn" onclick="toggleSettings()">×</button>
+    </h3>
+
+    <h4>👁️ Masque Ovale</h4>
+    <div class="setting-group">
+      <label class="setting-label">Position X (%)</label>
+      <input type="number" id="maskLeft" value="48" min="0" max="100" step="0.1" oninput="updatePreview()" />
+    </div>
+    <div class="setting-group">
+      <label class="setting-label">Position Y (%)</label>
+      <input type="number" id="maskTop" value="45" min="0" max="100" step="0.1" oninput="updatePreview()" />
+    </div>
+    <div class="setting-group">
+      <label class="setting-label">Largeur (%)</label>
+      <input type="number" id="maskWidth" value="20" min="1" max="50" step="0.1" oninput="updatePreview()" />
+    </div>
+    <div class="setting-group">
+      <label class="setting-label">Hauteur (%)</label>
+      <input type="number" id="maskHeight" value="10" min="1" max="30" step="0.1" oninput="updatePreview()" />
+    </div>
+
+    <h4>👄 Visèmes</h4>
+    <div class="setting-group">
+      <label class="setting-label">Position X dans le masque (%)</label>
+      <input type="number" id="visemeLeft" value="50" min="0" max="100" step="0.1" oninput="updatePreview()" />
+    </div>
+    <div class="setting-group">
+      <label class="setting-label">Position Y dans le masque (%)</label>
+      <input type="number" id="visemeTop" value="50" min="0" max="100" step="0.1" oninput="updatePreview()" />
+    </div>
+    <div class="setting-group">
+      <label class="setting-label">Largeur (%)</label>
+      <input type="number" id="settingWidth" value="100" min="50" max="150" step="1" oninput="updatePreview()" />
+    </div>
+    <div class="setting-group">
+      <label class="setting-label">Hauteur (%)</label>
+      <input type="number" id="visemeHeight" value="100" min="50" max="150" step="1" oninput="updatePreview()" />
+    </div>
+
+    <button class="save-btn" onclick="applySettings()">✅ Appliquer</button>
+  </div>
+
+  <script>
+    // --- CONFIGURATION ---
+    const VISEME_MAP = {
+      'A': 'bouche_A.png',
+      'B': 'bouche_B.png',
+      'C': 'bouche_C.png',
+      'D': 'bouche_D.png',
+      'E': 'bouche_E.png',
+      'F': 'bouche_F.png',
+      'G': 'bouche_G.png',
+      'H': 'bouche_H.png'
+    };
+
+    const RESPONSES = {
+      'glace': "Nous proposons une large gamme de vitrines à glace Clabo, fabriquées en Italie.",
+      'pâtisserie': "Pour les pâtissiers exigeants, nous offrons des pétrins planétaires IceTeam 1927.",
+      'prix': "Les prix varient selon la configuration, mais nous proposons des solutions à partir de 1 200 dinars tunisiens.",
+      'contact': "Notre showroom est aux Berges du Lac, Tunis. Ouvert du lundi au vendredi, de 8h30 à 17h30.",
+      'marque': "T.T.A Distribution est partenaire officiel des marques IceTeam 1927, Clabo, et GEMM.",
+      'default': "Bonjour ! Je suis votre assistant numérique de T.T.A Distribution."
+    };
+
+    let recognition;
+    let synth = window.speechSynthesis;
+    let isSpeaking = false;
+    let currentAnimFrame = null;   // <-- pour pouvoir annuler l'animation
+    let startTimeRef = null;       // <-- temps de référence pour l’animation
+
+    // --- FONCTIONS VOCAL & ANIMATION ---
+    function startListening() {
+      if (!('webkitSpeechRecognition' in window)) {
+        document.getElementById('status').innerText = "❌ Web Speech API non supportée.";
+        return;
+      }
+
+      recognition = new webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'fr-FR';
+
+      recognition.onstart = () => {
+        document.getElementById('status').innerText = "🎙️ Écoute en cours...";
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.toLowerCase().trim();
+        document.getElementById('status').innerText = `Vous avez dit : "${transcript}"`;
+        handleQuery(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        document.getElementById('status').innerText = `❌ Erreur : ${event.error}`;
+      };
+
+      recognition.onend = () => {
+        // Optionnel : remettre un message neutre
+      };
+
+      recognition.start();
+    }
+
+    function stopListening() {
+      if (recognition) recognition.stop();
+      document.getElementById('status').innerText = "⏹️ Écoute arrêtée.";
+    }
+
+    function handleQuery(text) {
+      let response = RESPONSES.default;
+      if (text.includes('glace') || text.includes('sorbet')) response = RESPONSES.glace;
+      else if (text.includes('pâtisserie') || text.includes('pétrin')) response = RESPONSES.pâtisserie;
+      else if (text.includes('prix') || text.includes('coût')) response = RESPONSES.prix;
+      else if (text.includes('contact') || text.includes('adresse')) response = RESPONSES.contact;
+      else if (text.includes('marque') || text.includes('clabo') || text.includes('iceteam')) response = RESPONSES.marque;
+
+      speakResponse(response);
+    }
+
+    function speakResponse(text) {
+      if (isSpeaking) {
+        // On peut forcer l’arrêt de la synthèse précédente
+        synth.cancel();
+        isSpeaking = false;
+      }
+
+      const mouth = document.getElementById('mouthSprite');
+      mouth.src = 'sprites/bouche_H.png';
+      isSpeaking = true;
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const visemeTimeline = generateSimpleVisemeTimeline(text);
+
+      // Lancer l’animation juste avant de parler
+      playVisemesDuringSpeech(visemeTimeline);
+
+      synth.speak(utterance);
+
+      utterance.onend = () => {
+        isSpeaking = false;
+        mouth.src = 'sprites/bouche_H.png';
+        // Stopper proprement l’animation
+        if (currentAnimFrame !== null) {
+          cancelAnimationFrame(currentAnimFrame);
+          currentAnimFrame = null;
+        }
+        startTimeRef = null;
+      };
+    }
+
+    function generateSimpleVisemeTimeline(text) {
+      const words = text.split(/\s+/);
+      const timeline = [];
+      let time = 0;
+      for (const word of words) {
+        for (const char of word.toLowerCase()) {
+          let v = 'H';
+          if ('aeiouàâäéèêëîïôöùûü'.includes(char)) v = 'A';
+          else if ('mbp'.includes(char)) v = 'B';
+          else if ('fv'.includes(char)) v = 'C';
+          else if ('td'.includes(char)) v = 'D';
+          else if ('iy'.includes(char)) v = 'E';
+          else if ('ouw'.includes(char)) v = 'F';
+          else if ('szxjç'.includes(char)) v = 'G';
+
+          timeline.push({ start: time, end: time + 0.12, viseme: v });
+          time += 0.12;
+        }
+        time += 0.2; // petite pause entre les mots
+      }
+      return timeline;
+    }
+
+    function playVisemesDuringSpeech(timeline) {
+      const mouth = document.getElementById('mouthSprite');
+
+      // Réinitialiser le temps de départ
+      startTimeRef = performance.now();
+
+      function step() {
+        // Si la synthèse est arrêtée, on sort
+        if (!synth.speaking && !isSpeaking) {
+          mouth.src = 'sprites/bouche_H.png';
+          return;
+        }
+
+        const elapsed = (performance.now() - startTimeRef) / 1000;
+        const current = timeline.find(v => elapsed >= v.start && elapsed < v.end);
+
+        const viseme = current ? current.viseme : 'H';
+        const fileName = VISEME_MAP[viseme] || VISEME_MAP['H'];
+
+        // Correction importante : on n’ajoute pas "sprites/" dans VISEME_MAP,
+        // on le met ici, une seule fois.
+        mouth.src = `sprites/${fileName}`;
+
+        currentAnimFrame = requestAnimationFrame(step);
+      }
+
+      // Lancer la boucle
+      currentAnimFrame = requestAnimationFrame(step);
+    }
+
+    // --- SETTINGS FUNCTIONALITY ---
+    function toggleSettings() {
+      const panel = document.getElementById('settingsPanel');
+      panel.classList.toggle('open');
+    }
+
+    function updatePreview() {
+      const maskLeft = document.getElementById('maskLeft').value;
+      const maskTop = document.getElementById('maskTop').value;
+      const maskWidth = document.getElementById('maskWidth').value;
+      const maskHeight = document.getElementById('maskHeight').value;
+
+      const container = document.getElementById('mouthMaskContainer');
+      container.style.left = `${maskLeft}%`;
+      container.style.top = `${maskTop}%`;
+      container.style.width = `${maskWidth}%`;
+      container.style.height = `${maskHeight}%`;
+
+      const mouth = document.getElementById('mouthSprite');
+      const visemeLeft = document.getElementById('visemeLeft').value;
+      const visemeTop = document.getElementById('visemeTop').value;
+      mouth.style.left = `${visemeLeft}%`;
+      mouth.style.top = `${visemeTop}%`;
+      mouth.style.width = `${document.getElementById('settingWidth').value}%`;
+      mouth.style.height = `${document.getElementById('visemeHeight').value}%`;
+    }
+
+    function applySettings() {
+      updatePreview();
+      localStorage.setItem('avatarSettings', JSON.stringify({
+        maskLeft: document.getElementById('maskLeft').value,
+        maskTop: document.getElementById('maskTop').value,
+        maskWidth: document.getElementById('maskWidth').value,
+        maskHeight: document.getElementById('maskHeight').value,
+        visemeLeft: document.getElementById('visemeLeft').value,
+        visemeTop: document.getElementById('visemeTop').value,
+        visemeWidth: document.getElementById('settingWidth').value,
+        visemeHeight: document.getElementById('visemeHeight').value
+      }));
+
+      document.getElementById('status').innerText = "✅ Paramètres appliqués.";
+    }
+
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('avatarSettings');
+      if (saved) {
+        const s = JSON.parse(saved);
+        document.getElementById('maskLeft').value = s.maskLeft || 48;
+        document.getElementById('maskTop').value = s.maskTop || 45;
+        document.getElementById('maskWidth').value = s.maskWidth || 20;
+        document.getElementById('maskHeight').value = s.maskHeight || 10;
+        document.getElementById('visemeLeft').value = s.visemeLeft || 50;
+        document.getElementById('visemeTop').value = s.visemeTop || 50;
+        document.getElementById('settingWidth').value = s.visemeWidth || 100;
+        document.getElementById('visemeHeight').value = s.visemeHeight || 100;
+        applySettings();
+      }
+    });
+  </script>
+</body>
+
+</html>
